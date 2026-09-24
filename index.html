@@ -637,6 +637,53 @@
         // =========================================================================
         const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzL3QeIIKZUfM4HKPPF2k2WrJ74__GXYdtlMlCp-FmEtpBV4ofn4fS-6S7_HLUNb0bv/exec";
 
+        /**
+         * SECTION 4: AUTOMATED URL FORMAT VALIDATION MODULE
+         * Validates the APPS_SCRIPT_URL format and logs diagnostic feedback.
+         * @param {string} url - The APPS_SCRIPT_URL string to validate.
+         * @returns {object} - Validation outcome { valid: boolean, message: string }
+         */
+        function validateAppsScriptUrl(url) {
+            if (!url || url.trim() === "" || url.includes("YOUR_EXEC_ID")) {
+                const msg = "⚠️ APPS_SCRIPT_URL is currently set to a placeholder. Backend integration is disabled.";
+                console.warn(msg);
+                return { valid: false, message: msg };
+            }
+
+            const trimmedUrl = url.trim();
+
+            // Check 1: Accidental Editor URL paste (/edit)
+            if (trimmedUrl.includes("/edit") || trimmedUrl.includes("/home/projects")) {
+                const msg = "❌ CONFIGURATION ERROR: APPS_SCRIPT_URL points to the Script Editor (/edit).\n" +
+                            "Please replace it with the Web App Executable URL ending in /exec.\n" +
+                            "Obtain this from Apps Script: Deploy > Manage deployments.";
+                console.error(msg);
+                if (typeof showAlert === "function") showAlert(msg, "amber");
+                return { valid: false, message: msg };
+            }
+
+            // Check 2: Development Executable URL paste (/dev)
+            if (trimmedUrl.endsWith("/dev")) {
+                const msg = "⚠️ WARNING: APPS_SCRIPT_URL uses the /dev endpoint. " +
+                            "This will fail for users who are not logged into the developer account. " +
+                            "Please update to the /exec production endpoint.";
+                console.warn(msg);
+                if (typeof showAlert === "function") showAlert(msg, "amber");
+                return { valid: false, message: msg };
+            }
+
+            // Check 3: Standard /exec validation
+            if (!trimmedUrl.endsWith("/exec")) {
+                const msg = "⚠️ WARNING: APPS_SCRIPT_URL does not end with '/exec'. Current URL: " + trimmedUrl;
+                console.warn(msg);
+                if (typeof showAlert === "function") showAlert(msg, "amber");
+                return { valid: false, message: msg };
+            }
+
+            console.log("✅ APPS_SCRIPT_URL validated successfully:", trimmedUrl);
+            return { valid: true, message: "URL is valid." };
+        }
+
         // MASTER DATA INITIALIZATION
         let appState = {
             currentUserEmail: localStorage.getItem('tsm_user_email') || '',
@@ -725,6 +772,9 @@
 
         // INITIAL ON DOM LOAD
         document.addEventListener('DOMContentLoaded', () => {
+            // AUTOMATED URL VALIDATION CALL AT STARTUP
+            validateAppsScriptUrl(APPS_SCRIPT_URL);
+
             initMasterDropdowns();
             renderTsmChecklistTable();
             addCustomerCargoBlock();
@@ -1116,7 +1166,7 @@
             } else {
                 document.getElementById('formLogin').classList.add('hidden');
                 document.getElementById('formRegister').classList.remove('hidden');
-                document.getElementById('authTabRegister').className = "w-1/2 py-2 font-bold border-b-2 border-emerald-600 text-emerald-600";
+                document.getElementById('authTabRegister').className = "w-1/2 py-2 font-bold text-emerald-600 border-b-2 border-emerald-600";
                 document.getElementById('authTabLogin').className = "w-1/2 py-2 font-bold text-slate-400 border-b-2 border-transparent";
             }
         }
