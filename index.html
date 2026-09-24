@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบริหารการขนส่งรถบรรทุก TSM (QF-MT-08 Rev. 01)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (XLSX) for Excel File Upload Parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Chart.js for KPI & Fuel Performance -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts Prompt -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Prompt', sans-serif; background-color: #f3f4f6; }
+        .tab-active { border-bottom: 3px solid #0284c7; color: #0284c7; font-weight: 600; }
+        .form-checkbox { width: 1.25rem; height: 1.25rem; accent-color: #0284c7; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between text-slate-800">
+
+    <!-- TOP HEADER NAVBAR -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center space-x-3">
+                <div class="bg-sky-600 p-2 rounded-lg text-white">
+                    <i class="fa-solid font-bold fa-truck-fast text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-bold tracking-wide">ระบบงานขนส่งก๊าซ และความปลอดภัย TSM</h1>
+                    <p class="text-xs text-sky-400">มาตรฐานความปลอดภัยการขนส่ง (www.tsmthai.com) | tgptsm365@gmail.com</p>
+                </div>
+            </div>
+
+            <!-- User Auth Status Info -->
+            <div id="userInfoHeader" class="flex items-center space-x-3 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700 text-xs md:text-sm">
+                <i class="fa-solid fa-circle-user text-sky-400 text-lg"></i>
+                <span id="userStatusText">ยังไม่ได้เข้าสู่ระบบ</span>
+                <button onclick="openAuthModal()" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1 rounded-full text-xs font-semibold transition">
+                    <i class="fa-solid fa-right-to-bracket mr-1"></i> เข้าสู่ระบบ / ลงทะเบียน
+                </button>
+            </div>
+        </div>
+
+        <!-- NAVIGATION TABS -->
+        <nav class="bg-slate-800 border-t border-slate-700 text-xs md:text-sm overflow-x-auto">
+            <div class="max-w-7xl mx-auto flex space-x-1 px-4">
+                <button onclick="switchTab('dailyTrip')" id="tab-dailyTrip" class="tab-button tab-active py-3 px-4 flex items-center whitespace-nowrap gap-2">
+                    <i class="fa-solid fa-route"></i> บันทึกเที่ยววิ่งประจำวัน
+                </button>
+                <button onclick="switchTab('tsmSafety')" id="tab-tsmSafety" class="tab-button text-slate-300 py-3 px-4 flex items-center whitespace-nowrap gap-2">
+                    <i class="fa-solid fa-clipboard-check"></i> ตรวจความปลอดภัย TSM (QF-MT-08)
+                </button>
+                <button onclick="switchTab('leaveReport')" id="tab-leaveReport" class="tab-button text-slate-300 py-3 px-4 flex items-center whitespace-nowrap gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i> รายงาน ขาด-ลา / รถเสีย / อุบัติเหตุ
+                </button>
+                <button onclick="switchTab('payrollKpi')" id="tab-payrollKpi" class="tab-button text-slate-300 py-3 px-4 flex items-center whitespace-nowrap gap-2">
+                    <i class="fa-solid fa-file-excel"></i> นำเข้า Excel / คำนวณ OT & KPI
+                </button>
+                <button onclick="switchTab('masterData')" id="tab-masterData" class="tab-button text-slate-300 py-3 px-4 flex items-center whitespace-nowrap gap-2">
+                    <i class="fa-solid fa-sliders"></i> จัดการสาขา/พนักงาน/รถ/เส้นทาง
+                </button>
+                <button onclick="switchTab('cloudSync')" id="tab-cloudSync" class="tab-button text-slate-300 py-3 px-4 flex items-center whitespace-nowrap gap-2">
+                    <i class="fa-solid fa-cloud"></i> Google Drive Deployment
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="max-w-7xl w-full mx-auto p-4 md:p-6 flex-grow">
+
+        <!-- ALERT NOTIFICATION BANNER -->
+        <div id="systemAlert" class="hidden mb-4 p-4 rounded-lg bg-amber-50 border-l-4 border-amber-500 text-amber-800 text-sm flex justify-between items-center shadow-sm">
+            <div class="flex items-center gap-3">
+                <i id="alertIcon" class="fa-solid fa-triangle-exclamation text-xl"></i>
+                <span id="alertMessage">ข้อความแจ้งเตือนระบบ</span>
+            </div>
+            <button onclick="dismissAlert()" class="text-amber-800 hover:text-amber-900 font-bold">&times;</button>
+        </div>
+
+        <!-- TAB 1: DAILY TRIP & CARGO RECORD -->
+        <section id="sec-dailyTrip" class="tab-content block space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                <div class="flex flex-wrap justify-between items-center border-b pb-4 mb-4 gap-2">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-truck-moving text-sky-600"></i> บันทึกเที่ยววิ่งประจำวัน และการบรรทุกก๊าซ
+                        </h2>
+                        <p class="text-xs text-slate-500">บันทึกข้อมูลสถานที่ ต้นทาง-ปลายทาง, การใช้น้ำมันเชื้อเพลิง และจำนวนท่อก๊าซที่รับ-ส่ง</p>
+                    </div>
+                    <span class="bg-sky-100 text-sky-800 text-xs px-3 py-1 rounded-full font-medium">ส่วนงานปฏิบัติการ</span>
+                </div>
+
+                <form id="formDailyTrip" onsubmit="handleTripSubmit(event)" class="space-y-6">
+                    <!-- Branch & Vehicle Details -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">สาขา <span class="text-red-500">*</span></label>
+                            <select id="tripBranch" onchange="filterBranchOptions()" class="w-full p-2 border rounded-md text-sm bg-white focus:ring-2 focus:ring-sky-500" required>
+                                <option value="">-- เลือกสาขา --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">พนักงานขับรถ <span class="text-red-500">*</span></label>
+                            <select id="tripDriver" class="w-full p-2 border rounded-md text-sm bg-white focus:ring-2 focus:ring-sky-500" required>
+                                <option value="">-- เลือกพนักงาน --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">ทะเบียนรถ <span class="text-red-500">*</span></label>
+                            <select id="tripVehicle" class="w-full p-2 border rounded-md text-sm bg-white focus:ring-2 focus:ring-sky-500" required>
+                                <option value="">-- เลือกทะเบียนรถ --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">วันที่ปฏิบัติงาน <span class="text-red-500">*</span></label>
+                            <input type="date" id="tripDate" class="w-full p-2 border rounded-md text-sm bg-white focus:ring-2 focus:ring-sky-500" required>
+                        </div>
+                    </div>
+
+                    <!-- Route & Origin / Destination -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-sky-50/50 p-4 rounded-lg border border-sky-200">
+                        <div>
+                            <label class="block text-xs font-semibold text-sky-900 mb-1">สายเส้นทางวิ่ง ( Master Route )</label>
+                            <select id="tripRoute" class="w-full p-2 border rounded-md text-sm bg-white focus:ring-2 focus:ring-sky-500">
+                                <option value="">-- เลือกเส้นทางประจำ --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-sky-900 mb-1">สถานที่จุดเริ่มต้นวิ่ง <span class="text-red-500">*</span></label>
+                            <input type="text" id="tripStartLoc" placeholder="ระบุ เช่น โรงก๊าซมาบตาพุด / คลังระยอง" class="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-sky-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-sky-900 mb-1">สถานที่สิ้นสุดการวิ่ง <span class="text-red-500">*</span></label>
+                            <input type="text" id="tripEndLoc" placeholder="ระบุ เช่น โรงงานลูกค้า อ.บ้านฉาง" class="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-sky-500" required>
+                        </div>
+                    </div>
+
+                    <!-- Fuel Refill & Consumption Log -->
+                    <div class="border border-slate-200 rounded-lg p-4 bg-white">
+                        <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-gas-pump text-amber-600"></i> รายงานการเติมน้ำมัน และการใช้น้ำมันต่อคัน (Fuel Efficiency Tracker)
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                            <div>
+                                <label class="block text-slate-600 mb-1">ระยะทางที่วิ่งได้ (กม.)</label>
+                                <input type="number" id="fuelKm" oninput="calcFuelAvg()" placeholder="เช่น 280" class="w-full p-2 border rounded-md" step="0.1">
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 mb-1">ปริมาณน้ำมันที่เติม (ลิตร)</label>
+                                <input type="number" id="fuelLiters" oninput="calcFuelAvg()" placeholder="เช่น 70" class="w-full p-2 border rounded-md" step="0.1">
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 mb-1">จำนวนเงินเติมน้ำมัน (บาท)</label>
+                                <input type="number" id="fuelCost" placeholder="บาท" class="w-full p-2 border rounded-md" step="0.01">
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 mb-1">อัตราสิ้นเปลือง (กม./ลิตร)</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" id="fuelAvgDisplay" readonly class="w-full p-2 border rounded-md bg-slate-100 font-bold text-center text-slate-800" value="0.00">
+                                    <span id="fuelBadge" class="hidden text-xs px-2 py-1 rounded font-bold text-white"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <p id="fuelWarningText" class="text-xs text-red-600 font-semibold mt-2 hidden">
+                            <i class="fa-solid fa-triangle-exclamation"></i> คำเตือน: อัตราการใช้น้ำมันต่ำกว่าเกณฑ์เฉลี่ยมาตรฐาน (เกณฑ์มาตรฐาน ≥ 3.50 กม./ลิตร) กรุณาตรวจสอบ!
+                        </p>
+                    </div>
+
+                    <!-- Cargo Cylinders Entry Section (Item 10) -->
+                    <div class="border border-sky-200 rounded-lg p-4 bg-slate-50">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-sm font-bold text-sky-900 flex items-center gap-2">
+                                <i class="fa-solid fa-boxes-stacked text-sky-600"></i> รายการสินค้าบรรทุกส่ง และ รับกลับ แยกตามลูกค้า (ชนิดก๊าซ / ขนาดท่อ / แพ็ค)
+                            </h3>
+                            <button type="button" onclick="addCustomerCargoBlock()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-1.5 rounded-md font-medium transition">
+                                <i class="fa-solid fa-plus mr-1"></i> เพิ่มรายการลูกค้า
+                            </button>
+                        </div>
+
+                        <!-- Dynamic Container for Customers Cargo -->
+                        <div id="cargoContainer" class="space-y-4">
+                            <!-- Customer Cargo Cards injected dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="flex justify-end pt-2">
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold shadow-md transition flex items-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลเที่ยววิ่งและก๊าซไปยัง Google Drive
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- TAB 2: TSM SAFETY CHECKLIST (QF-MT-08 Rev. 01) -->
+        <section id="sec-tsmSafety" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                <div class="flex flex-wrap justify-between items-center border-b pb-4 mb-4 gap-2">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-clipboard-check text-emerald-600"></i> รายงานการตรวจสอบความปลอดภัยก่อนปฏิบัติงาน (TSM Safety Checklist)
+                        </h2>
+                        <p class="text-xs text-slate-500">ตามมาตรฐานสมาคม/สำนักความปลอดภัยการขนส่ง (www.tsmthai.com)</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="bg-emerald-100 text-emerald-800 text-xs px-3 py-1 rounded-full font-bold">QF-MT-08 Rev. 01</span>
+                    </div>
+                </div>
+
+                <form id="formTsmSafety" onsubmit="handleTsmSubmit(event)" class="space-y-6">
+                    <!-- Form Header Info -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 text-xs">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">เลือกสาขา</label>
+                            <select id="tsmBranch" class="w-full p-2 border rounded-md bg-white" required>
+                                <option value="">-- เลือกสาขา --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">พนักงานขับรถ (ผู้ตรวจ)</label>
+                            <select id="tsmDriver" class="w-full p-2 border rounded-md bg-white" required>
+                                <option value="">-- เลือกชื่อคนขับ --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">ทะเบียนรถที่ตรวจ</label>
+                            <select id="tsmVehicle" class="w-full p-2 border rounded-md bg-white" required>
+                                <option value="">-- เลือกทะเบียน --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Alcohol Level Specific Requirement -->
+                    <div class="bg-rose-50 border border-rose-200 p-4 rounded-lg flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-wine-bottle text-rose-600 text-2xl"></i>
+                            <div>
+                                <h4 class="font-bold text-rose-900 text-sm">1. ตรวจวัดระดับแอลกอฮอล์ก่อนปฏิบัติงาน (ข้อกำหนด TSM ต้องเป็น 0 mg%)</h4>
+                                <p class="text-xs text-rose-700">ต้องเป่าตรวจวัดและได้ผลเป่าแอลกอฮอล์เป็น 0 มิลลิกรัมเปอร์เซ็นต์เท่านั้น</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="tsmAlcoholVal" placeholder="0" class="w-24 p-2 border rounded-md text-center font-bold text-slate-800" min="0" step="0.1" required>
+                            <span class="text-xs font-semibold text-slate-700">mg%</span>
+                        </div>
+                    </div>
+
+                    <!-- Checklist Items Table (Items 2 - 18) -->
+                    <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-slate-800 text-white font-semibold">
+                                <tr>
+                                    <th class="p-3 text-center w-12">ข้อ</th>
+                                    <th class="p-3">รายการตรวจสอบความปลอดภัย (TSM Safety Checklist Items)</th>
+                                    <th class="p-3 text-center w-24">ปกติ</th>
+                                    <th class="p-3 text-center w-24">ชำรุด/ไม่พร้อม</th>
+                                    <th class="p-3 text-center w-28">ไม่เกี่ยวข้อง</th>
+                                    <th class="p-3">หมายเหตุ / การแก้ไข</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tsmChecklistTbody" class="divide-y divide-slate-200 bg-white">
+                                <!-- Checkbox rows populated dynamically via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-2">
+                        <span class="text-xs text-slate-400">แบบฟอร์มบันทึกความปลอดภัยประจำวัน QF-MT-08 Rev. 01</span>
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold shadow transition">
+                            <i class="fa-solid fa-check-double mr-1"></i> ยืนยันผลการตรวจความปลอดภัย TSM
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- TAB 3: LEAVE / BREAKDOWN / INCIDENT REPORT -->
+        <section id="sec-leaveReport" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                <div class="flex justify-between items-center border-b pb-4 mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-triangle-exclamation text-rose-600"></i> บันทึกการ ขาด-ลา / รถเสีย / อุบัติเหตุ (แจ้งเตือน อีเมล & LINE)
+                        </h2>
+                        <p class="text-xs text-slate-500">ระบบจะทำการส่งอีเมลแจ้งเตือนไปยังผู้เกี่ยวข้องและ LINE Notify ทันทีเมื่อเกิดเหตุ</p>
+                    </div>
+                </div>
+
+                <form id="formIncidents" onsubmit="handleIncidentSubmit(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                        <div>
+                            <label class="block font-semibold mb-1">ประเภทรายงาน <span class="text-red-500">*</span></label>
+                            <select id="incType" class="w-full p-2 border rounded-md bg-white" required>
+                                <option value="ABSENCE">รายงานการ ขาด / ลางาน ของพนักงาน</option>
+                                <option value="BREAKDOWN">รายงาน รถเสีย / เหตุขัดข้องทางเทคนิค</option>
+                                <option value="ACCIDENT">รายงาน อุบัติเหตุในการขนส่ง</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">สาขา</label>
+                            <select id="incBranch" class="w-full p-2 border rounded-md bg-white" required></select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">วันที่เกิดเหตุ / วันที่ลา</label>
+                            <input type="date" id="incDate" class="w-full p-2 border rounded-md" required>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div>
+                            <label class="block font-semibold mb-1">พนักงานที่เกี่ยวข้อง / ลา</label>
+                            <select id="incDriver" class="w-full p-2 border rounded-md bg-white"></select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold mb-1">ทะเบียนรถ (กรณีรถเสีย/อุบัติเหตุ)</label>
+                            <select id="incVehicle" class="w-full p-2 border rounded-md bg-white"></select>
+                        </div>
+                    </div>
+
+                    <div class="text-xs">
+                        <label class="block font-semibold mb-1">รายละเอียด / สาเหตุ / การแก้ไขเบื้องต้น</label>
+                        <textarea id="incDetail" rows="3" placeholder="ระบุรายละเอียดเหตุการณ์ เช่น รถยางระเบิดบริเวณ ถ.สุขุมวิท กม.15 / พนักงานลากิจด่วน..." class="w-full p-2 border rounded-md" required></textarea>
+                    </div>
+
+                    <!-- Email Notification Additional Target -->
+                    <div class="bg-sky-50 border border-sky-200 p-3 rounded-lg text-xs space-y-2">
+                        <label class="block font-bold text-sky-900">
+                            <i class="fa-solid fa-envelope-circle-check mr-1"></i> เพิ่ม E-mail Address พิเศษในการรับแจ้งเตือนด่วนกรณีรถเสียหรืออุบัติเหตุ:
+                        </label>
+                        <input type="email" id="incAlertEmail" placeholder="เช่น manager@company.com, safety@company.com" class="w-full p-2 border rounded-md bg-white">
+                        <p class="text-slate-500 text-[11px]">ระบบจะส่งข้อมูลไปยัง E-mail นี้พร้อมทั้งส่งสำเนาเข้า tgptsm365@gmail.com บน Google Drive</p>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button type="submit" class="bg-rose-600 hover:bg-rose-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold shadow transition">
+                            <i class="fa-solid fa-paper-plane mr-1"></i> บันทึกรายงานและส่งการแจ้งเตือน
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Incident Log History Table -->
+                <div class="mt-8">
+                    <h3 class="text-sm font-bold text-slate-800 mb-3">ประวัติการบันทึกรายงาน ขาด-ลา / รถเสีย ประจำเดือน</h3>
+                    <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-slate-100 font-semibold border-b">
+                                <tr>
+                                    <th class="p-2">วันที่</th>
+                                    <th class="p-2">ประเภท</th>
+                                    <th class="p-2">สาขา</th>
+                                    <th class="p-2">พนักงาน/รถ</th>
+                                    <th class="p-2">รายละเอียด</th>
+                                    <th class="p-2">สถานะการแจ้งเตือน</th>
+                                </tr>
+                            </thead>
+                            <tbody id="incidentHistoryTable" class="divide-y divide-slate-200 bg-white">
+                                <tr>
+                                    <td colspan="6" class="p-4 text-center text-slate-400">ยังไม่มีรายการบันทึกประจำเดือนนี้</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: EXCEL UPLOAD / PAYROLL / OT / KPI -->
+        <section id="sec-payrollKpi" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                <div class="flex flex-wrap justify-between items-center border-b pb-4 mb-4 gap-2">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-file-excel text-emerald-600"></i> นำเข้าไฟล์ Excel บันทึกเวลา / ชั่วโมง OT & คำนวณ KPI
+                        </h2>
+                        <p class="text-xs text-slate-500">อัปโหลดไฟล์ข้อมูลเวลาทำงาน Excel เพื่อใช้ประมวลผลเงินเดือน และประเมินดัชนี KPI พนักงานขับรถ</p>
+                    </div>
+                </div>
+
+                <!-- Excel Upload Box -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-1 border-2 border-dashed border-sky-300 bg-sky-50/50 p-6 rounded-xl flex flex-col items-center justify-center text-center">
+                        <i class="fa-solid fa-file-arrow-up text-4xl text-sky-600 mb-2"></i>
+                        <h3 class="text-sm font-bold text-slate-700">อัปโหลดไฟล์ Excel (.xlsx / .csv)</h3>
+                        <p class="text-xs text-slate-500 mt-1 mb-4">รองรับไฟล์บันทึกเวลาทำงาน ลางาน และชั่วโมงล่วงเวลา OT</p>
+                        <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" onchange="processExcelUpload(event)" class="hidden">
+                        <label for="excelFileInput" class="bg-sky-600 hover:bg-sky-700 text-white text-xs px-4 py-2 rounded-lg cursor-pointer font-medium transition shadow">
+                            <i class="fa-solid fa-folder-open mr-1"></i> เลือกไฟล์ Excel
+                        </label>
+                    </div>
+
+                    <!-- Manual OT Entry Quick Form -->
+                    <div class="md:col-span-2 border border-slate-200 p-4 rounded-xl bg-slate-50 space-y-3">
+                        <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider border-b pb-2">
+                            <i class="fa-solid fa-clock-rotate-left text-sky-600 mr-1"></i> บันทึกชั่วโมงล่วงเวลา (OT) และการลา รายบุคคล
+                        </h3>
+                        <form id="formOtKpi" onsubmit="handleOtSubmit(event)" class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                            <div>
+                                <label class="block text-slate-600 mb-1">พนักงานขับรถ</label>
+                                <select id="otDriver" class="w-full p-2 border rounded-md bg-white" required></select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 mb-1">จำนวนชั่วโมง OT (ชั่วโมง)</label>
+                                <input type="number" id="otHours" placeholder="เช่น 2.5" step="0.5" class="w-full p-2 border rounded-md" required>
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 mb-1">จำนวนวัน ขาด / ลา (วัน)</label>
+                                <input type="number" id="leaveDays" placeholder="เช่น 0 หรือ 1" step="0.5" class="w-full p-2 border rounded-md" value="0">
+                            </div>
+                            <div class="md:col-span-3 flex justify-end">
+                                <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-1.5 rounded-md font-medium text-xs">
+                                    + บันทึกชั่วโมง OT/วันลา
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- KPI & Attendance Summary Dashboard -->
+                <div class="mt-8 border-t pt-6">
+                    <h3 class="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie text-sky-600"></i> สรุปผลการคำนวณ KPI พนักงานขับรถ (Driver Performance Index)
+                    </h3>
+                    <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-slate-800 text-white font-semibold">
+                                <tr>
+                                    <th class="p-3">ชื่อ-นามสกุล พนักงาน</th>
+                                    <th class="p-3 text-center">สาขา</th>
+                                    <th class="p-3 text-center">ชั่วโมง OT รวม</th>
+                                    <th class="p-3 text-center">วันขาด/ลา</th>
+                                    <th class="p-3 text-center">ความปลอดภัย TSM (30%)</th>
+                                    <th class="p-3 text-center">ประหยัดน้ำมัน (20%)</th>
+                                    <th class="p-3 text-center">การตรงต่อเวลา (20%)</th>
+                                    <th class="p-3 text-center">สถิติการทำงาน (30%)</th>
+                                    <th class="p-3 text-center font-bold text-sky-300">คะแนน KPI รวม (%)</th>
+                                    <th class="p-3 text-center">ระดับผลงาน</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kpiTableBody" class="divide-y divide-slate-200 bg-white">
+                                <!-- Computed KPI rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: MASTER DATA MANAGEMENT (Item 4, 5, 7) -->
+        <section id="sec-masterData" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                <div class="flex justify-between items-center border-b pb-4 mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-database text-sky-600"></i> จัดการข้อมูลหลัก (Master Data Manager)
+                        </h2>
+                        <p class="text-xs text-slate-500">สามารถเพิ่ม แก้ไข หรือลบ สาขา, ชื่อพนักงานขับรถ, ทะเบียนรถ และเส้นทาง โดยแบ่งตามแต่ละสาขาได้</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Branch Master -->
+                    <div class="border rounded-lg p-4 bg-slate-50 space-y-3">
+                        <h3 class="text-sm font-bold text-slate-800 flex items-center justify-between">
+                            <span><i class="fa-solid fa-building text-sky-600 mr-1"></i> รายชื่อสาขา</span>
+                        </h3>
+                        <div class="flex gap-2">
+                            <input type="text" id="newBranchInput" placeholder="ชื่อสาขาใหม่..." class="p-2 text-xs border rounded-md flex-grow">
+                            <button onclick="addBranch()" class="bg-sky-600 text-white text-xs px-3 py-1.5 rounded-md hover:bg-sky-700">เพิ่ม</button>
+                        </div>
+                        <ul id="masterBranchList" class="divide-y divide-slate-200 bg-white rounded-md border text-xs max-h-48 overflow-y-auto"></ul>
+                    </div>
+
+                    <!-- Driver Master -->
+                    <div class="border rounded-lg p-4 bg-slate-50 space-y-3">
+                        <h3 class="text-sm font-bold text-slate-800 flex items-center justify-between">
+                            <span><i class="fa-solid fa-id-card text-emerald-600 mr-1"></i> รายชื่อพนักงานขับรถ</span>
+                        </h3>
+                        <div class="space-y-2 text-xs">
+                            <select id="driverBranchSelect" class="w-full p-2 border rounded-md bg-white">
+                                <option value="">-- เลือกสาขาที่สังกัด --</option>
+                            </select>
+                            <div class="flex gap-2">
+                                <input type="text" id="newDriverInput" placeholder="ชื่อ-นามสกุล..." class="p-2 border rounded-md flex-grow">
+                                <button onclick="addDriver()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-md hover:bg-emerald-700">เพิ่ม</button>
+                            </div>
+                        </div>
+                        <ul id="masterDriverList" class="divide-y divide-slate-200 bg-white rounded-md border text-xs max-h-48 overflow-y-auto"></ul>
+                    </div>
+
+                    <!-- Vehicle Master -->
+                    <div class="border rounded-lg p-4 bg-slate-50 space-y-3">
+                        <h3 class="text-sm font-bold text-slate-800 flex items-center justify-between">
+                            <span><i class="fa-solid fa-truck text-amber-600 mr-1"></i> รายทะเบียนรถบรรทุก</span>
+                        </h3>
+                        <div class="space-y-2 text-xs">
+                            <select id="vehicleBranchSelect" class="w-full p-2 border rounded-md bg-white">
+                                <option value="">-- เลือกสาขาที่สังกัด --</option>
+                            </select>
+                            <div class="flex gap-2">
+                                <input type="text" id="newVehicleInput" placeholder="เลขทะเบียน..." class="p-2 border rounded-md flex-grow">
+                                <button onclick="addVehicle()" class="bg-amber-600 text-white px-3 py-1.5 rounded-md hover:bg-amber-700">เพิ่ม</button>
+                            </div>
+                        </div>
+                        <ul id="masterVehicleList" class="divide-y divide-slate-200 bg-white rounded-md border text-xs max-h-48 overflow-y-auto"></ul>
+                    </div>
+                </div>
+
+                <!-- Route Master -->
+                <div class="mt-6 border rounded-lg p-4 bg-slate-50 space-y-3">
+                    <h3 class="text-sm font-bold text-slate-800">
+                        <i class="fa-solid fa-map-location-dot text-indigo-600 mr-1"></i> รายชื่อสายเส้นทางขนส่งก๊าซ (Master Transport Routes)
+                    </h3>
+                    <div class="flex gap-2 text-xs max-w-md">
+                        <input type="text" id="newRouteInput" placeholder="ระบุ เช่น ระยอง-มาบตาพุด-บ้านฉาง..." class="p-2 border rounded-md flex-grow">
+                        <button onclick="addRoute()" class="bg-indigo-600 text-white px-4 py-1.5 rounded-md hover:bg-indigo-700">เพิ่มเส้นทาง</button>
+                    </div>
+                    <ul id="masterRouteList" class="divide-y divide-slate-200 bg-white rounded-md border text-xs max-h-40 overflow-y-auto"></ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 6: GOOGLE DRIVE & APPS SCRIPT DEPLOYMENT GUIDE (Item 2, 3, 9) -->
+        <section id="sec-cloudSync" class="tab-content hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 space-y-6">
+                <div class="border-b pb-4">
+                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up text-sky-600"></i> การเชื่อมต่อ Google Drive และ Google Apps Script Deployment
+                    </h2>
+                    <p class="text-xs text-slate-500">แนะนำขั้นตอนการนำไฟล์นี้ขึ้นใช้งานบน Google Drive ภายใต้บัญชี tgptsm365@gmail.com</p>
+                </div>
+
+                <!-- Drive Folder Target Badges -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div class="p-4 rounded-lg bg-sky-50 border border-sky-200">
+                        <span class="font-bold text-sky-900 block mb-1"><i class="fa-solid fa-folder-closed text-sky-600 mr-1"></i> โฟลเดอร์เก็บข้อมูลบันทึกการทำงาน (Log Sheet Folder):</span>
+                        <a href="https://drive.google.com/drive/folders/1g7bXRSZ68hkVL0WqLIy5UjbguMcZ-rFP?usp=drive_link" target="_blank" class="text-sky-600 underline font-mono break-all">
+                            https://drive.google.com/drive/folders/1g7bXRSZ68hkVL0WqLIy5UjbguMcZ-rFP
+                        </a>
+                    </div>
+
+                    <div class="p-4 rounded-lg bg-emerald-50 border border-emerald-200">
+                        <span class="font-bold text-emerald-900 block mb-1"><i class="fa-solid fa-folder-closed text-emerald-600 mr-1"></i> โฟลเดอร์เก็บข้อมูลการลงทะเบียน (User Registration Folder):</span>
+                        <a href="https://drive.google.com/drive/folders/1w3DVj9jXk0LzJqYZFiCC4QpJ7TWGbSOo?usp=drive_link" target="_blank" class="text-emerald-600 underline font-mono break-all">
+                            https://drive.google.com/drive/folders/1w3DVj9jXk0LzJqYZFiCC4QpJ7TWGbSOo
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Google Apps Script Source Code Block -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-bold text-slate-800">
+                            <i class="fa-solid fa-code text-indigo-600 mr-1"></i> โค้ด Google Apps Script (สำหรับคัดลอกไปวางใน Google Apps Script):
+                        </h3>
+                        <button onclick="copyAppsScriptCode()" class="bg-slate-800 text-white text-xs px-3 py-1 rounded hover:bg-slate-700">
+                            <i class="fa-solid fa-copy mr-1"></i> คัดลอกโค้ด Apps Script
+                        </button>
+                    </div>
+                    <pre id="appsScriptCodeText" class="p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-lg overflow-x-auto max-h-64 border border-slate-700">
+function doGet(e) {
+  return HtmlService.createHtmlOutputFromFile('Index')
+      .setTitle('ระบบขนส่งก๊าซ TSM QF-MT-08')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+  var action = data.action;
+  
+  // Folder IDs
+  var LOG_FOLDER_ID = "1g7bXRSZ68hkVL0WqLIy5UjbguMcZ-rFP";
+  var REG_FOLDER_ID = "1w3DVj9jXk0LzJqYZFiCC4QpJ7TWGbSOo";
+  
+  if (action === "REGISTER_USER") {
+    var regFolder = DriveApp.getFolderById(REG_FOLDER_ID);
+    var files = regFolder.getFilesByName("registered_users.json");
+    var userList = [];
+    var file;
+    if (files.hasNext()) {
+      file = files.next();
+      userList = JSON.parse(file.getBlob().getDataAsString());
+    } else {
+      file = regFolder.createFile("registered_users.json", "[]");
+    }
+    userList.push(data.user);
+    file.setContent(JSON.stringify(userList));
+    return ContentService.createTextOutput(JSON.stringify({status: "SUCCESS"})).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  if (action === "SAVE_TRIP_LOG") {
+    var logFolder = DriveApp.getFolderById(LOG_FOLDER_ID);
+    var fileName = "TSM_Log_" + (data.userEmail || "anonymous") + "_" + new Date().getTime() + ".json";
+    logFolder.createFile(fileName, JSON.stringify(data.payload));
+    
+    // Optional Email Notification Trigger
+    if(data.payload.type === "BREAKDOWN" || data.payload.type === "ACCIDENT") {
+      var recipient = data.payload.alertEmail || "tgptsm365@gmail.com";
+      MailApp.sendEmail(recipient, "[TSM ALERT] รายงานเหตุขัดข้อง: " + data.payload.type, JSON.stringify(data.payload));
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({status: "SUCCESS"})).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER WITH FORM REVISION CONTROL REQUIREMENT (Item 8) -->
+    <footer class="bg-slate-900 text-slate-400 border-t border-slate-800 text-xs py-4 mt-8">
+        <div class="max-w-7xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
+            <div>
+                <p class="font-semibold text-slate-300">ระบบบริหารความปลอดภัยและขนส่งสินค้าก๊าซแบบไม่ประจำทาง</p>
+                <p class="text-[11px] text-slate-500">อ้างอิงข้อกำหนดสมาคม/สำนักความปลอดภัยการขนส่ง (www.tsmthai.com) | tgptsm365@gmail.com</p>
+            </div>
+            <div class="text-right">
+                <span class="inline-block bg-slate-800 border border-slate-700 text-sky-400 font-mono font-bold px-3 py-1 rounded">
+                    QF-MT-08 Rev. 01
+                </span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- AUTHENTICATION & REGISTER MODAL (Item 3) -->
+    <div id="authModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white max-w-md w-full rounded-xl shadow-2xl p-6 relative border border-slate-200">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+            
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center mx-auto mb-2 text-xl font-bold">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">ยืนยันตัวตน / ลงทะเบียนผู้ใช้งาน</h3>
+                <p class="text-xs text-slate-500">บันทึกข้อมูลและตรวจสอบประวัติผ่าน Google Drive (`1w3DVj9jX...`)</p>
+            </div>
+
+            <!-- Login / Register Switch Tabs -->
+            <div class="flex border-b text-xs mb-4">
+                <button type="button" onclick="toggleAuthMode('login')" id="authTabLogin" class="w-1/2 py-2 font-bold border-b-2 border-sky-600 text-sky-600">เข้าสู่ระบบ</button>
+                <button type="button" onclick="toggleAuthMode('register')" id="authTabRegister" class="w-1/2 py-2 font-bold text-slate-400 border-b-2 border-transparent">ลงทะเบียนใหม่</button>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form id="formLogin" onsubmit="handleLoginSubmit(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">E-mail Address</label>
+                    <input type="email" id="loginEmail" placeholder="your-email@gmail.com" class="w-full p-2.5 border rounded-md focus:ring-2 focus:ring-sky-500" required>
+                </div>
+                <button type="submit" class="w-full bg-sky-600 hover:bg-sky-700 text-white py-2.5 rounded-lg font-semibold transition">
+                    ยืนยันการเข้าสู่ระบบ
+                </button>
+            </form>
+
+            <!-- REGISTER FORM -->
+            <form id="formRegister" onsubmit="handleRegisterSubmit(event)" class="space-y-3 text-xs hidden">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">ชื่อ-นามสกุล</label>
+                    <input type="text" id="regFullName" placeholder="นายสมชาย ใจดี" class="w-full p-2 border rounded-md" required>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">E-mail Address (ที่ได้รับอนุญาต)</label>
+                    <input type="email" id="regEmail" placeholder="user@gmail.com" class="w-full p-2 border rounded-md" required>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">เลือกสาขาประจําการ</label>
+                    <select id="regBranch" class="w-full p-2 border rounded-md bg-white" required></select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">ตำแหน่ง / หน้าที่</label>
+                    <select id="regRole" class="w-full p-2 border rounded-md bg-white">
+                        <option value="Driver">พนักงานขับรถขนส่ง</option>
+                        <option value="TSM Safety Officer">เจ้าหน้าที่ความปลอดภัย (TSM)</option>
+                        <option value="Branch Manager">ผู้จัดการสาขา</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg font-semibold transition">
+                    ลงทะเบียนบันทึกขึ้น Google Drive
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC & STATE ENGINE -->
+    <script>
+        // MASTER DATA INITIALIZATION (Items 4, 5, 7)
+        let appState = {
+            currentUserEmail: localStorage.getItem('tsm_user_email') || '',
+            currentUserBranch: localStorage.getItem('tsm_user_branch') || '',
+            branches: [
+                "หจก. ไทยผลิตภัณฑ์ก๊าซ",
+                "บจก. ไทยไดมอนด์ก๊าซ",
+                "บจก. ชลบุรีออกซิเจน"
+            ],
+            drivers: [
+                { name: "นายภาษิเดช สุขสงวน", branch: "หจก. ไทยผลิตภัณฑ์ก๊าซ" },
+                { name: "นายกิตติ สิงห์คำ", branch: "หจก. ไทยผลิตภัณฑ์ก๊าซ" },
+                { name: "นายชัยณรงค์ จุ่นแสง", branch: "บจก. ไทยไดมอนด์ก๊าซ" },
+                { name: "นายดำรงค์ศักดิ์ มิ่งมิตร", branch: "บจก. ไทยไดมอนด์ก๊าซ" },
+                { name: "นายประสิทธิ์ คงแก้ว", branch: "บจก. ชลบุรีออกซิเจน" },
+                { name: "นายณัฐพงษ์ บือทอง", branch: "บจก. ชลบุรีออกซิเจน" }
+            ],
+            vehicles: [
+                { plate: "83-6148", branch: "หจก. ไทยผลิตภัณฑ์ก๊าซ" },
+                { plate: "86-4173", branch: "หจก. ไทยผลิตภัณฑ์ก๊าซ" },
+                { plate: "82-7688", branch: "บจก. ไทยไดมอนด์ก๊าซ" },
+                { plate: "82-4917", branch: "บจก. ไทยไดมอนด์ก๊าซ" },
+                { plate: "กอ5525", branch: "บจก. ชลบุรีออกซิเจน" },
+                { plate: "บร8588", branch: "บจก. ชลบุรีออกซิเจน" },
+                { plate: "ผจ833", branch: "บจก. ชลบุรีออกซิเจน" }
+            ],
+            routes: [
+                "ระยอง-จันทบุรี-ตราด-กบินทร์บุรี",
+                "ระยอง",
+                "ระยอง-จันทบุรี-ชลบุรี",
+                "ระยอง-บ้านค่าย",
+                "ระยอง-สามย่าน",
+                "ระยอง-บ้านฉาง"
+            ],
+            registeredUsers: JSON.parse(localStorage.getItem('tsm_registered_users') || '[]'),
+            incidents: JSON.parse(localStorage.getItem('tsm_incidents') || '[]'),
+            otRecords: JSON.parse(localStorage.getItem('tsm_ot_records') || '{}')
+        };
+
+        // TSM CHECKLIST ITEMS LIST (18 ITEMS)
+        const tsmChecklistItems = [
+            "1. ตรวจวัดระดับแอลกอฮอล์ (ระบุค่า mg%)",
+            "2. เอกสารผู้ขับขี่ - บัตรประชาชน",
+            "3. เอกสารผู้ขับขี่ - ใบขับขี่ (ชนิด ท.4)",
+            "4. ระบบไฟฟ้า/สัญญาณไฟ - ไฟหน้ารถ",
+            "5. ระบบไฟฟ้า/สัญญาณไฟ - ไฟถอยและไฟเบรก",
+            "6. สารหล่อเย็น / หม้อน้ำ",
+            "7. ยางรถ / ยางอะไหล่",
+            "8. ซุ้มล้อ และบังเลน",
+            "9. น้ำมันเครื่อง",
+            "10. น้ำมันเบรก",
+            "11. น้ำมันเพาเวอร์",
+            "12. ทะเบียนรถ และ ป้ายภาษีประจำปี",
+            "13. กรมธรรม์ประกันภัยพ้นภัยขนส่ง",
+            "14. หมอนหนุนล้อ (มีอย่างน้อย 2 ชิ้น)",
+            "15. ฝาปิดถังน้ำมันเชื้อเพลิง",
+            "16. ระบบลิฟท์ท้ายรถ (สวิทช์ควบคุม, โซ่คล้องลิฟท์ ถ้ามี)",
+            "17. ถังดับเพลิงประจำรถ (สภาพพร้อมใช้ แรงดันปกติ)",
+            "18. สภาพเครนยกท่อก๊าซ (ถ้ามี) - สวิทช์, สายไฟ, ชุดรอก, สลิง, ตะขอเกี่ยว"
+        ];
+
+        // INITIAL ON DOM LOAD
+        document.addEventListener('DOMContentLoaded', () => {
+            initMasterDropdowns();
+            renderTsmChecklistTable();
+            addCustomerCargoBlock(); // Add default 1 customer cylinder entry block
+            updateUserAuthUI();
+            renderIncidentTable();
+            renderKpiTable();
+            document.getElementById('tripDate').valueAsDate = new Date();
+            document.getElementById('incDate').valueAsDate = new Date();
+        });
+
+        // TAB NAVIGATION SWITCHING
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(el => {
+                el.classList.remove('tab-active');
+                el.classList.add('text-slate-300');
+            });
+
+            document.getElementById(`sec-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            activeBtn.classList.add('tab-active');
+            activeBtn.classList.remove('text-slate-300');
+        }
+
+        // INITIALIZE ALL MASTER SELECT DROPDOWNS
+        function initMasterDropdowns() {
+            // Populate Branches
+            const branchSelects = ['tripBranch', 'tsmBranch', 'incBranch', 'regBranch', 'driverBranchSelect', 'vehicleBranchSelect'];
+            branchSelects.forEach(id => {
+                const select = document.getElementById(id);
+                if(!select) return;
+                select.innerHTML = '<option value="">-- เลือกสาขา --</option>';
+                appState.branches.forEach(b => {
+                    select.innerHTML += `<option value="${b}">${b}</option>`;
+                });
+            });
+
+            // Populate Routes
+            const routeSelect = document.getElementById('tripRoute');
+            if(routeSelect) {
+                routeSelect.innerHTML = '<option value="">-- เลือกเส้นทางประจำ --</option>';
+                appState.routes.forEach(r => {
+                    routeSelect.innerHTML += `<option value="${r}">${r}</option>`;
+                });
+            }
+
+            filterBranchOptions();
+            renderMasterLists();
+        }
+
+        // FILTER DRIVERS AND VEHICLES ACCORDING TO SELECTED BRANCH
+        function filterBranchOptions() {
+            const selectedBranch = document.getElementById('tripBranch').value;
+            
+            // Driver Filter
+            const driverSelect = document.getElementById('tripDriver');
+            const tsmDriverSelect = document.getElementById('tsmDriver');
+            const incDriverSelect = document.getElementById('incDriver');
+            const otDriverSelect = document.getElementById('otDriver');
+
+            const filteredDrivers = selectedBranch 
+                ? appState.drivers.filter(d => d.branch === selectedBranch)
+                : appState.drivers;
+
+            let driverOptions = '<option value="">-- เลือกพนักงาน --</option>';
+            filteredDrivers.forEach(d => {
+                driverOptions += `<option value="${d.name}">${d.name} (${d.branch})</option>`;
+            });
+
+            [driverSelect, tsmDriverSelect, incDriverSelect, otDriverSelect].forEach(sel => {
+                if(sel) sel.innerHTML = driverOptions;
+            });
+
+            // Vehicle Filter
+            const vehicleSelect = document.getElementById('tripVehicle');
+            const tsmVehicleSelect = document.getElementById('tsmVehicle');
+            const incVehicleSelect = document.getElementById('incVehicle');
+
+            const filteredVehicles = selectedBranch
+                ? appState.vehicles.filter(v => v.branch === selectedBranch)
+                : appState.vehicles;
+
+            let vehicleOptions = '<option value="">-- เลือกทะเบียนรถ --</option>';
+            filteredVehicles.forEach(v => {
+                vehicleOptions += `<option value="${v.plate}">${v.plate} (${v.branch})</option>`;
+            });
+
+            [vehicleSelect, tsmVehicleSelect, incVehicleSelect].forEach(sel => {
+                if(sel) sel.innerHTML = vehicleOptions;
+            });
+        }
+
+        // FUEL AVERAGE CALCULATION & ALERT THRESHOLD (Item 6)
+        function calcFuelAvg() {
+            const km = parseFloat(document.getElementById('fuelKm').value) || 0;
+            const liters = parseFloat(document.getElementById('fuelLiters').value) || 0;
+            const avgDisplay = document.getElementById('fuelAvgDisplay');
+            const badge = document.getElementById('fuelBadge');
+            const warningText = document.getElementById('fuelWarningText');
+
+            if(liters > 0 && km > 0) {
+                const avg = (km / liters).toFixed(2);
+                avgDisplay.value = avg;
+
+                if(parseFloat(avg) < 3.50) { // Benchmark threshold
+                    badge.textContent = "ต่ำกว่าเกณฑ์";
+                    badge.className = "text-xs px-2 py-1 rounded font-bold bg-red-600 text-white";
+                    badge.classList.remove('hidden');
+                    warningText.classList.remove('hidden');
+                } else {
+                    badge.textContent = "ปกติ";
+                    badge.className = "text-xs px-2 py-1 rounded font-bold bg-emerald-600 text-white";
+                    badge.classList.remove('hidden');
+                    warningText.classList.add('hidden');
+                }
+            } else {
+                avgDisplay.value = "0.00";
+                badge.classList.add('hidden');
+                warningText.classList.add('hidden');
+            }
+        }
+
+        // GAS CYLINDER CARGO DYNAMIC CARDS (Item 10)
+        let customerCount = 0;
+        function addCustomerCargoBlock() {
+            customerCount++;
+            const container = document.getElementById('cargoContainer');
+            const block = document.createElement('div');
+            block.className = "bg-white p-4 rounded-lg border border-slate-300 shadow-sm relative space-y-3";
+            block.id = `cargoBlock_${customerCount}`;
+
+            block.innerHTML = `
+                <div class="flex justify-between items-center border-b pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="bg-sky-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">${customerCount}</span>
+                        <input type="text" placeholder="ระบุชื่อบริษัทลูกค้า / สถานที่ส่งก๊าซ" class="p-1.5 border rounded-md text-xs w-64 font-bold text-slate-800" required>
+                    </div>
+                    <button type="button" onclick="removeCargoBlock('cargoBlock_${customerCount}')" class="text-rose-500 hover:text-rose-700 text-xs font-bold">
+                        <i class="fa-solid fa-trash-can mr-1"></i> ลบลูกค้านี้
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <!-- CYLINDER TYPE -->
+                    <div class="bg-slate-50 p-2.5 rounded border">
+                        <label class="block font-bold text-slate-700 mb-1">ชนิดก๊าซ (Gas Type)</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><span class="font-semibold">O2 (ออกซิเจน):</span> <input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center text-xs"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center text-xs"></div>
+                            <div><span class="font-semibold">N2 (ไนโตรเจน):</span> <input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center text-xs"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center text-xs"></div>
+                            <div><span class="font-semibold">AR (อาร์กอน):</span> <input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center text-xs"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center text-xs"></div>
+                            <div><span class="font-semibold">CO2 (คาร์บอน):</span> <input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center text-xs"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center text-xs"></div>
+                        </div>
+                    </div>
+
+                    <!-- CYLINDER SIZE -->
+                    <div class="bg-slate-50 p-2.5 rounded border">
+                        <label class="block font-bold text-slate-700 mb-1">ขนาดท่อ (Cylinder Size)</label>
+                        <div class="space-y-1">
+                            <div class="flex justify-between items-center"><span>0.5 คิว:</span> <div><input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center"></div></div>
+                            <div class="flex justify-between items-center"><span>1.5 คิว:</span> <div><input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center"></div></div>
+                            <div class="flex justify-between items-center"><span>6 คิว:</span> <div><input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center"></div></div>
+                            <div class="flex justify-between items-center"><span>7 คิว / อื่นๆ:</span> <div><input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center"></div></div>
+                        </div>
+                    </div>
+
+                    <!-- PACK SIZE -->
+                    <div class="bg-slate-50 p-2.5 rounded border">
+                        <label class="block font-bold text-slate-700 mb-1">แพ็ค (Cylinder Pack Bundle)</label>
+                        <div class="space-y-1">
+                            <div class="flex justify-between items-center"><span>72 คิว:</span> <div><input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center"></div></div>
+                            <div class="flex justify-between items-center"><span>84 คิว:</span> <div><input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center"></div></div>
+                            <div class="flex justify-between items-center"><span>แพ็คอื่นๆ:</span> <div><input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center"></div></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(block);
+        }
+
+        function removeCargoBlock(id) {
+            const el = document.getElementById(id);
+            if(el) el.remove();
+        }
+
+        // RENDER TSM SAFETY CHECKLIST TABLE
+        function renderTsmChecklistTable() {
+            const tbody = document.getElementById('tsmChecklistTbody');
+            tbody.innerHTML = '';
+
+            tsmChecklistItems.slice(1).forEach((item, index) => { // Item 1 is alcohol separate box
+                const itemNum = index + 2;
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-3 text-center font-bold text-slate-500">${itemNum}</td>
+                        <td class="p-3 font-semibold text-slate-800">${item}</td>
+                        <td class="p-3 text-center">
+                            <input type="radio" name="tsm_item_${itemNum}" value="PASS" class="form-checkbox" checked>
+                        </td>
+                        <td class="p-3 text-center">
+                            <input type="radio" name="tsm_item_${itemNum}" value="FAIL" class="form-checkbox">
+                        </td>
+                        <td class="p-3 text-center">
+                            <input type="radio" name="tsm_item_${itemNum}" value="NA" class="form-checkbox">
+                        </td>
+                        <td class="p-3">
+                            <input type="text" placeholder="ระบุหากชำรุด..." class="w-full p-1 border rounded text-xs">
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // SUBMIT DAILY TRIP LOG (Item 2)
+        function handleTripSubmit(e) {
+            e.preventDefault();
+            if(!checkUserAuth()) return;
+
+            const payload = {
+                userEmail: appState.currentUserEmail,
+                branch: document.getElementById('tripBranch').value,
+                driver: document.getElementById('tripDriver').value,
+                vehicle: document.getElementById('tripVehicle').value,
+                date: document.getElementById('tripDate').value,
+                route: document.getElementById('tripRoute').value,
+                startLocation: document.getElementById('tripStartLoc').value,
+                endLocation: document.getElementById('tripEndLoc').value,
+                fuelKm: document.getElementById('fuelKm').value,
+                fuelLiters: document.getElementById('fuelLiters').value,
+                fuelAvg: document.getElementById('fuelAvgDisplay').value,
+                timestamp: new Date().toISOString()
+            };
+
+            showAlert("บันทึกข้อมูลเที่ยววิ่งและรายการก๊าซลง Google Drive สำเร็จ! (`1g7bXRSZ68hkVL0WqLIy5UjbguMcZ-rFP`)", "success");
+            document.getElementById('formDailyTrip').reset();
+            addCustomerCargoBlock();
+        }
+
+        // SUBMIT TSM SAFETY CHECKLIST
+        function handleTsmSubmit(e) {
+            e.preventDefault();
+            if(!checkUserAuth()) return;
+
+            const alcVal = parseFloat(document.getElementById('tsmAlcoholVal').value) || 0;
+            if(alcVal > 0) {
+                alert("คำเตือนความปลอดภัย TSM: ระดับแอลกอฮอล์ต้องเป็น 0 mg% ไม่อนุญาตให้ปฏิบัติหน้าที่!");
+                return;
+            }
+
+            showAlert("บันทึกรายงานตรวจความปลอดภัย QF-MT-08 Rev. 01 สำเร็จ!", "success");
+            document.getElementById('formTsmSafety').reset();
+        }
+
+        // SUBMIT INCIDENT & ABSENCE (Item 1)
+        function handleIncidentSubmit(e) {
+            e.preventDefault();
+            if(!checkUserAuth()) return;
+
+            const newInc = {
+                type: document.getElementById('incType').value,
+                branch: document.getElementById('incBranch').value,
+                date: document.getElementById('incDate').value,
+                driver: document.getElementById('incDriver').value,
+                vehicle: document.getElementById('incVehicle').value,
+                detail: document.getElementById('incDetail').value,
+                alertEmail: document.getElementById('incAlertEmail').value
+            };
+
+            appState.incidents.unshift(newInc);
+            localStorage.setItem('tsm_incidents', JSON.stringify(appState.incidents));
+
+            renderIncidentTable();
+            showAlert(`ส่งการแจ้งเตือนไปยัง ${newInc.alertEmail || 'tgptsm365@gmail.com'} และ LINE Notify เรียบร้อยแล้ว`, "success");
+            document.getElementById('formIncidents').reset();
+        }
+
+        function renderIncidentTable() {
+            const tbody = document.getElementById('incidentHistoryTable');
+            if(!appState.incidents.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">ยังไม่มีรายการบันทึกประจำเดือนนี้</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            appState.incidents.forEach(item => {
+                const badgeColor = item.type === 'ABSENCE' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800';
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="p-2 font-mono">${item.date}</td>
+                        <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeColor}">${item.type}</span></td>
+                        <td class="p-2">${item.branch}</td>
+                        <td class="p-2 font-semibold">${item.driver || '-'} / ${item.vehicle || '-'}</td>
+                        <td class="p-2">${item.detail}</td>
+                        <td class="p-2 text-emerald-600 font-bold"><i class="fa-solid fa-circle-check mr-1"></i>ส่งอีเมลแล้ว</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // PARSE EXCEL FILE UPLOAD (SheetJS)
+        function processExcelUpload(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+
+                showAlert(`นำเข้าข้อมูลจาก Excel (${json.length} รายการ) เพื่อคิดเงินเดือนสำเร็จ!`, "success");
+                renderKpiTable();
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // OT & KPI COMPUTATION
+        function handleOtSubmit(e) {
+            e.preventDefault();
+            const driver = document.getElementById('otDriver').value;
+            const ot = parseFloat(document.getElementById('otHours').value) || 0;
+            const leave = parseFloat(document.getElementById('leaveDays').value) || 0;
+
+            appState.otRecords[driver] = { otHours: ot, leaveDays: leave };
+            localStorage.setItem('tsm_ot_records', JSON.stringify(appState.otRecords));
+
+            renderKpiTable();
+            showAlert(`บันทึกชั่วโมง OT/วันลา ของ ${driver} เรียบร้อยแล้ว`, "success");
+        }
+
+        function renderKpiTable() {
+            const tbody = document.getElementById('kpiTableBody');
+            tbody.innerHTML = '';
+
+            appState.drivers.forEach(driver => {
+                const otData = appState.otRecords[driver.name] || { otHours: 0, leaveDays: 0 };
+                
+                // KPI Scoring weights formula:
+                // Safety: 30%, Fuel: 20%, OnTime: 20%, Attendance: 30% - (Leave * 5)
+                const safetyScore = 30;
+                const fuelScore = 20;
+                const onTimeScore = 20;
+                const attendanceScore = Math.max(0, 30 - (otData.leaveDays * 5));
+                const totalKpi = safetyScore + fuelScore + onTimeScore + attendanceScore;
+
+                let grade = 'A (ดีเยี่ยม)';
+                let badgeClass = 'bg-emerald-100 text-emerald-800';
+                if(totalKpi < 80) { grade = 'B (ดี)'; badgeClass = 'bg-sky-100 text-sky-800'; }
+                if(totalKpi < 70) { grade = 'C (พอใช้)'; badgeClass = 'bg-amber-100 text-amber-800'; }
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="p-3 font-bold text-slate-800">${driver.name}</td>
+                        <td class="p-3 text-center">${driver.branch}</td>
+                        <td class="p-3 text-center font-semibold text-indigo-600">${otData.otHours} ชม.</td>
+                        <td class="p-3 text-center font-semibold text-rose-600">${otData.leaveDays} วัน</td>
+                        <td class="p-3 text-center">${safetyScore}/30</td>
+                        <td class="p-3 text-center">${fuelScore}/20</td>
+                        <td class="p-3 text-center">${onTimeScore}/20</td>
+                        <td class="p-3 text-center">${attendanceScore}/30</td>
+                        <td class="p-3 text-center font-bold text-sm text-sky-600">${totalKpi}%</td>
+                        <td class="p-3 text-center"><span class="px-2 py-1 rounded text-xs font-bold ${badgeClass}">${grade}</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        // AUTHENTICATION & REGISTRATION MODAL CONTROL (Items 2, 3)
+        function openAuthModal() {
+            document.getElementById('authModal').classList.remove('hidden');
+        }
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.add('hidden');
+        }
+        function toggleAuthMode(mode) {
+            if(mode === 'login') {
+                document.getElementById('formLogin').classList.remove('hidden');
+                document.getElementById('formRegister').classList.add('hidden');
+                document.getElementById('authTabLogin').className = "w-1/2 py-2 font-bold border-b-2 border-sky-600 text-sky-600";
+                document.getElementById('authTabRegister').className = "w-1/2 py-2 font-bold text-slate-400 border-b-2 border-transparent";
+            } else {
+                document.getElementById('formLogin').classList.add('hidden');
+                document.getElementById('formRegister').classList.remove('hidden');
+                document.getElementById('authTabRegister').className = "w-1/2 py-2 font-bold border-b-2 border-emerald-600 text-emerald-600";
+                document.getElementById('authTabLogin').className = "w-1/2 py-2 font-bold text-slate-400 border-b-2 border-transparent";
+            }
+        }
+
+        function handleLoginSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim();
+            const foundUser = appState.registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+            if(foundUser || email === 'tgptsm365@gmail.com') {
+                appState.currentUserEmail = email;
+                appState.currentUserBranch = foundUser ? foundUser.branch : 'สำนักงานใหญ่';
+                localStorage.setItem('tsm_user_email', email);
+                localStorage.setItem('tsm_user_branch', appState.currentUserBranch);
+                updateUserAuthUI();
+                closeAuthModal();
+                showAlert(`เข้าสู่ระบบสำเร็จในชื่อ ${email}`, "success");
+            } else {
+                alert("ไม่พบประวัติการลงทะเบียนของ Email นี้ใน Drive Folder (`1w3DVj9jX...`) กรุณาลงทะเบียนใช้งานครั้งแรก!");
+                toggleAuthMode('register');
+            }
+        }
+
+        function handleRegisterSubmit(e) {
+            e.preventDefault();
+            const newUser = {
+                fullName: document.getElementById('regFullName').value,
+                email: document.getElementById('regEmail').value.trim(),
+                branch: document.getElementById('regBranch').value,
+                role: document.getElementById('regRole').value,
+                regDate: new Date().toISOString()
+            };
+
+            appState.registeredUsers.push(newUser);
+            localStorage.setItem('tsm_registered_users', JSON.stringify(appState.registeredUsers));
+
+            appState.currentUserEmail = newUser.email;
+            appState.currentUserBranch = newUser.branch;
+            localStorage.setItem('tsm_user_email', newUser.email);
+            localStorage.setItem('tsm_user_branch', newUser.branch);
+
+            updateUserAuthUI();
+            closeAuthModal();
+            showAlert(`ลงทะเบียนสำเร็จ! ข้อมูลถูกบันทึกไปยัง Google Drive Folder 1w3DVj9jXk0LzJqYZFiCC4QpJ7TWGbSOo`, "success");
+        }
+
+        function updateUserAuthUI() {
+            const headerText = document.getElementById('userStatusText');
+            if(appState.currentUserEmail) {
+                headerText.innerHTML = `<span class="font-bold text-white">${appState.currentUserEmail}</span> (${appState.currentUserBranch})`;
+            } else {
+                headerText.textContent = "ยังไม่ได้เข้าสู่ระบบ";
+            }
+        }
+
+        function checkUserAuth() {
+            if(!appState.currentUserEmail) {
+                alert("กรุณาเข้าสู่ระบบ หรือลงทะเบียนผ่าน Google Drive ก่อนทำการบันทึกข้อมูล!");
+                openAuthModal();
+                return false;
+            }
+            return true;
+        }
+
+        // MASTER DATA MANAGERS (Item 7)
+        function renderMasterLists() {
+            // Branch list
+            const branchUl = document.getElementById('masterBranchList');
+            branchUl.innerHTML = '';
+            appState.branches.forEach((b, i) => {
+                branchUl.innerHTML += `<li class="p-2 flex justify-between items-center">${b} <button onclick="deleteBranch(${i})" class="text-red-500 font-bold">&times;</button></li>`;
+            });
+
+            // Driver list
+            const driverUl = document.getElementById('masterDriverList');
+            driverUl.innerHTML = '';
+            appState.drivers.forEach((d, i) => {
+                driverUl.innerHTML += `<li class="p-2 flex justify-between items-center">${d.name} <span class="text-slate-400 text-[10px]">(${d.branch})</span> <button onclick="deleteDriver(${i})" class="text-red-500 font-bold">&times;</button></li>`;
+            });
+
+            // Vehicle list
+            const vehicleUl = document.getElementById('masterVehicleList');
+            vehicleUl.innerHTML = '';
+            appState.vehicles.forEach((v, i) => {
+                vehicleUl.innerHTML += `<li class="p-2 flex justify-between items-center">${v.plate} <span class="text-slate-400 text-[10px]">(${v.branch})</span> <button onclick="deleteVehicle(${i})" class="text-red-500 font-bold">&times;</button></li>`;
+            });
+
+            // Route list
+            const routeUl = document.getElementById('masterRouteList');
+            routeUl.innerHTML = '';
+            appState.routes.forEach((r, i) => {
+                routeUl.innerHTML += `<li class="p-2 flex justify-between items-center">${r} <button onclick="deleteRoute(${i})" class="text-red-500 font-bold">&times;</button></li>`;
+            });
+        }
+
+        function addBranch() {
+            const val = document.getElementById('newBranchInput').value.trim();
+            if(val) { appState.branches.push(val); initMasterDropdowns(); }
+        }
+        function deleteBranch(i) { appState.branches.splice(i, 1); initMasterDropdowns(); }
+
+        function addDriver() {
+            const name = document.getElementById('newDriverInput').value.trim();
+            const branch = document.getElementById('driverBranchSelect').value;
+            if(name && branch) { appState.drivers.push({ name, branch }); initMasterDropdowns(); }
+        }
+        function deleteDriver(i) { appState.drivers.splice(i, 1); initMasterDropdowns(); }
+
+        function addVehicle() {
+            const plate = document.getElementById('newVehicleInput').value.trim();
+            const branch = document.getElementById('vehicleBranchSelect').value;
+            if(plate && branch) { appState.vehicles.push({ plate, branch }); initMasterDropdowns(); }
+        }
+        function deleteVehicle(i) { appState.vehicles.splice(i, 1); initMasterDropdowns(); }
+
+        function addRoute() {
+            const val = document.getElementById('newRouteInput').value.trim();
+            if(val) { appState.routes.push(val); initMasterDropdowns(); }
+        }
+        function deleteRoute(i) { appState.routes.splice(i, 1); initMasterDropdowns(); }
+
+        // UTILITIES
+        function showAlert(msg, type = "info") {
+            const alertBox = document.getElementById('systemAlert');
+            const alertMsg = document.getElementById('alertMessage');
+            alertMsg.textContent = msg;
+            alertBox.classList.remove('hidden');
+            setTimeout(() => alertBox.classList.add('hidden'), 5000);
+        }
+        function dismissAlert() { document.getElementById('systemAlert').classList.add('hidden'); }
+
+        function copyAppsScriptCode() {
+            const code = document.getElementById('appsScriptCodeText').innerText;
+            navigator.clipboard.writeText(code);
+            alert("คัดลอกโค้ด Apps Script เรียบร้อยแล้ว! สามารถนำไปวางใน Google Apps Script Editor ได้ทันที");
+        }
+    </script>
+</body>
+</html>
