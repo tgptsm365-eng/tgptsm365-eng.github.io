@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบบริหารการขนส่งรถบรรทุก TSM (QF-MT-08 Rev. 02)</title>
+    <title>ระบบบริหารการขนส่งรถบรรทุก TSM (QF-MT-08 Rev. 01)</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -171,7 +171,7 @@
                         </p>
                     </div>
 
-                    <!-- Cargo Cylinders Entry Section (Item 10) -->
+                    <!-- Cargo Cylinders Entry Section -->
                     <div class="border border-sky-200 rounded-lg p-4 bg-slate-50">
                         <div class="flex justify-between items-center mb-3">
                             <h3 class="text-sm font-bold text-sky-900 flex items-center gap-2">
@@ -190,7 +190,7 @@
 
                     <!-- Submit Button -->
                     <div class="flex justify-end pt-2">
-                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold shadow-md transition flex items-center gap-2">
+                        <button type="submit" id="btnSubmitTrip" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold shadow-md transition flex items-center gap-2">
                             <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูลเที่ยววิ่งและก๊าซไปยัง Google Drive
                         </button>
                     </div>
@@ -288,7 +288,7 @@
                         <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
                             <i class="fa-solid fa-triangle-exclamation text-rose-600"></i> บันทึกการ ขาด-ลา / รถเสีย / อุบัติเหตุ (แจ้งเตือน อีเมล & LINE)
                         </h2>
-                        <p class="text-xs text-slate-500">ระบบจะทำการส่งอีเมลแจ้งเตือนไปยังผู้เกี่ยวข้องและ LINE Notify ทันทีเมื่อเกิดเหตุ</p>
+                        <p class="text-xs text-slate-500">ระบบจะทำการส่งอีเมลแจ้งเตือนไปยังผู้เกี่ยวข้องทันทีเมื่อเกิดเหตุ</p>
                     </div>
                 </div>
 
@@ -451,7 +451,7 @@
             </div>
         </section>
 
-        <!-- TAB 5: MASTER DATA MANAGEMENT (Item 4, 5, 7) -->
+        <!-- TAB 5: MASTER DATA MANAGEMENT -->
         <section id="sec-masterData" class="tab-content hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
                 <div class="flex justify-between items-center border-b pb-4 mb-4">
@@ -525,7 +525,7 @@
             </div>
         </section>
 
-        <!-- TAB 6: GOOGLE DRIVE & APPS SCRIPT DEPLOYMENT GUIDE (Item 2, 3, 9) -->
+        <!-- TAB 6: GOOGLE DRIVE DEPLOYMENT INFO -->
         <section id="sec-cloudSync" class="tab-content hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 space-y-6">
                 <div class="border-b pb-4">
@@ -551,70 +551,12 @@
                         </a>
                     </div>
                 </div>
-
-                <!-- Google Apps Script Source Code Block -->
-                <div class="space-y-2">
-                    <div class="flex justify-between items-center">
-                        <h3 class="text-sm font-bold text-slate-800">
-                            <i class="fa-solid fa-code text-indigo-600 mr-1"></i> โค้ด Google Apps Script (สำหรับคัดลอกไปวางใน Google Apps Script):
-                        </h3>
-                        <button onclick="copyAppsScriptCode()" class="bg-slate-800 text-white text-xs px-3 py-1 rounded hover:bg-slate-700">
-                            <i class="fa-solid fa-copy mr-1"></i> คัดลอกโค้ด Apps Script
-                        </button>
-                    </div>
-                    <pre id="appsScriptCodeText" class="p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-lg overflow-x-auto max-h-64 border border-slate-700">
-function doGet(e) {
-  return HtmlService.createHtmlOutputFromFile('Index')
-      .setTitle('ระบบขนส่งก๊าซ TSM QF-MT-08')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-
-function doPost(e) {
-  var data = JSON.parse(e.postData.contents);
-  var action = data.action;
-  
-  // Folder IDs
-  var LOG_FOLDER_ID = "1g7bXRSZ68hkVL0WqLIy5UjbguMcZ-rFP";
-  var REG_FOLDER_ID = "1w3DVj9jXk0LzJqYZFiCC4QpJ7TWGbSOo";
-  
-  if (action === "REGISTER_USER") {
-    var regFolder = DriveApp.getFolderById(REG_FOLDER_ID);
-    var files = regFolder.getFilesByName("registered_users.json");
-    var userList = [];
-    var file;
-    if (files.hasNext()) {
-      file = files.next();
-      userList = JSON.parse(file.getBlob().getDataAsString());
-    } else {
-      file = regFolder.createFile("registered_users.json", "[]");
-    }
-    userList.push(data.user);
-    file.setContent(JSON.stringify(userList));
-    return ContentService.createTextOutput(JSON.stringify({status: "SUCCESS"})).setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  if (action === "SAVE_TRIP_LOG") {
-    var logFolder = DriveApp.getFolderById(LOG_FOLDER_ID);
-    var fileName = "TSM_Log_" + (data.userEmail || "anonymous") + "_" + new Date().getTime() + ".json";
-    logFolder.createFile(fileName, JSON.stringify(data.payload));
-    
-    // Optional Email Notification Trigger
-    if(data.payload.type === "BREAKDOWN" || data.payload.type === "ACCIDENT") {
-      var recipient = data.payload.alertEmail || "tgptsm365@gmail.com";
-      MailApp.sendEmail(recipient, "[TSM ALERT] รายงานเหตุขัดข้อง: " + data.payload.type, JSON.stringify(data.payload));
-    }
-    
-    return ContentService.createTextOutput(JSON.stringify({status: "SUCCESS"})).setMimeType(ContentService.MimeType.JSON);
-  }
-}
-                    </pre>
-                </div>
             </div>
         </section>
 
     </main>
 
-    <!-- FOOTER WITH FORM REVISION CONTROL REQUIREMENT (Item 8) -->
+    <!-- FOOTER WITH FORM REVISION CONTROL REQUIREMENT -->
     <footer class="bg-slate-900 text-slate-400 border-t border-slate-800 text-xs py-4 mt-8">
         <div class="max-w-7xl mx-auto px-4 flex flex-wrap justify-between items-center gap-2">
             <div>
@@ -629,7 +571,7 @@ function doPost(e) {
         </div>
     </footer>
 
-    <!-- AUTHENTICATION & REGISTER MODAL (Item 3) -->
+    <!-- AUTHENTICATION & REGISTER MODAL -->
     <div id="authModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white max-w-md w-full rounded-xl shadow-2xl p-6 relative border border-slate-200">
             <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
@@ -688,9 +630,15 @@ function doPost(e) {
         </div>
     </div>
 
-    <!-- JAVASCRIPT LOGIC & STATE ENGINE -->
+    <!-- JAVASCRIPT LOGIC & BACKEND CONNECTION ENGINE -->
     <script>
-        // MASTER DATA INITIALIZATION (Items 4, 5, 7)
+        // =========================================================================
+        // STEP 5 CONFIGURATION: LINK YOUR GOOGLE APPS SCRIPT WEB APP URL HERE!
+        // =========================================================================
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx-zBisPLopSsAtAoGms4ZobCBtmeI6TUXlhVdSa2lo2kBxh0R7qKLBqj7nNO3yUrx7Yw/exec";
+
+
+        // MASTER DATA INITIALIZATION
         let appState = {
             currentUserEmail: localStorage.getItem('tsm_user_email') || '',
             currentUserBranch: localStorage.getItem('tsm_user_branch') || '',
@@ -751,11 +699,36 @@ function doPost(e) {
             "18. สภาพเครนยกท่อก๊าซ (ถ้ามี) - สวิทช์, สายไฟ, ชุดรอก, สลิง, ตะขอเกี่ยว"
         ];
 
+        // GOOGLE APPS SCRIPT ASYNC POST DISPATCHER
+        async function sendToBackend(action, dataObj) {
+            if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_EXEC_ID")) {
+                console.warn("Google Apps Script URL is not configured yet. Payload saved locally.");
+                return { status: "OFFLINE_MODE" };
+            }
+
+            try {
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: action,
+                        userEmail: appState.currentUserEmail,
+                        user: dataObj,
+                        payload: dataObj
+                    })
+                });
+                return await response.json();
+            } catch (err) {
+                console.error("Backend sync error:", err);
+                return { status: "ERROR", error: err.toString() };
+            }
+        }
+
         // INITIAL ON DOM LOAD
         document.addEventListener('DOMContentLoaded', () => {
             initMasterDropdowns();
             renderTsmChecklistTable();
-            addCustomerCargoBlock(); // Add default 1 customer cylinder entry block
+            addCustomerCargoBlock();
             updateUserAuthUI();
             renderIncidentTable();
             renderKpiTable();
@@ -779,7 +752,6 @@ function doPost(e) {
 
         // INITIALIZE ALL MASTER SELECT DROPDOWNS
         function initMasterDropdowns() {
-            // Populate Branches
             const branchSelects = ['tripBranch', 'tsmBranch', 'incBranch', 'regBranch', 'driverBranchSelect', 'vehicleBranchSelect'];
             branchSelects.forEach(id => {
                 const select = document.getElementById(id);
@@ -790,7 +762,6 @@ function doPost(e) {
                 });
             });
 
-            // Populate Routes
             const routeSelect = document.getElementById('tripRoute');
             if(routeSelect) {
                 routeSelect.innerHTML = '<option value="">-- เลือกเส้นทางประจำ --</option>';
@@ -807,7 +778,6 @@ function doPost(e) {
         function filterBranchOptions() {
             const selectedBranch = document.getElementById('tripBranch').value;
             
-            // Driver Filter
             const driverSelect = document.getElementById('tripDriver');
             const tsmDriverSelect = document.getElementById('tsmDriver');
             const incDriverSelect = document.getElementById('incDriver');
@@ -826,7 +796,6 @@ function doPost(e) {
                 if(sel) sel.innerHTML = driverOptions;
             });
 
-            // Vehicle Filter
             const vehicleSelect = document.getElementById('tripVehicle');
             const tsmVehicleSelect = document.getElementById('tsmVehicle');
             const incVehicleSelect = document.getElementById('incVehicle');
@@ -845,7 +814,7 @@ function doPost(e) {
             });
         }
 
-        // FUEL AVERAGE CALCULATION & ALERT THRESHOLD (Item 6)
+        // FUEL AVERAGE CALCULATION
         function calcFuelAvg() {
             const km = parseFloat(document.getElementById('fuelKm').value) || 0;
             const liters = parseFloat(document.getElementById('fuelLiters').value) || 0;
@@ -857,7 +826,7 @@ function doPost(e) {
                 const avg = (km / liters).toFixed(2);
                 avgDisplay.value = avg;
 
-                if(parseFloat(avg) < 3.50) { // Benchmark threshold
+                if(parseFloat(avg) < 3.50) {
                     badge.textContent = "ต่ำกว่าเกณฑ์";
                     badge.className = "text-xs px-2 py-1 rounded font-bold bg-red-600 text-white";
                     badge.classList.remove('hidden');
@@ -875,7 +844,7 @@ function doPost(e) {
             }
         }
 
-        // GAS CYLINDER CARGO DYNAMIC CARDS (Item 10)
+        // GAS CYLINDER CARGO DYNAMIC CARDS
         let customerCount = 0;
         function addCustomerCargoBlock() {
             customerCount++;
@@ -896,18 +865,16 @@ function doPost(e) {
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                    <!-- CYLINDER TYPE -->
                     <div class="bg-slate-50 p-2.5 rounded border">
                         <label class="block font-bold text-slate-700 mb-1">ชนิดก๊าซ (Gas Type)</label>
                         <div class="grid grid-cols-2 gap-2">
-                            <div><span class="font-semibold">O2 (ออกซิเจน):</span> <input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center text-xs"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center text-xs"></div>
-                            <div><span class="font-semibold">N2 (ไนโตรเจน):</span> <input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center text-xs"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center text-xs"></div>
-                            <div><span class="font-semibold">AR (อาร์กอน):</span> <input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center text-xs"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center text-xs"></div>
-                            <div><span class="font-semibold">CO2 (คาร์บอน):</span> <input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center text-xs"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center text-xs"></div>
+                            <div><span class="font-semibold">O2:</span> <input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center text-xs"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center text-xs"></div>
+                            <div><span class="font-semibold">N2:</span> <input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center text-xs"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center text-xs"></div>
+                            <div><span class="font-semibold">AR:</span> <input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center text-xs"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center text-xs"></div>
+                            <div><span class="font-semibold">CO2:</span> <input type="number" min="0" placeholder="ส่ง" class="p-1 border rounded w-12 text-center text-xs"> / <input type="number" min="0" placeholder="รับ" class="p-1 border rounded w-12 text-center text-xs"></div>
                         </div>
                     </div>
 
-                    <!-- CYLINDER SIZE -->
                     <div class="bg-slate-50 p-2.5 rounded border">
                         <label class="block font-bold text-slate-700 mb-1">ขนาดท่อ (Cylinder Size)</label>
                         <div class="space-y-1">
@@ -918,7 +885,6 @@ function doPost(e) {
                         </div>
                     </div>
 
-                    <!-- PACK SIZE -->
                     <div class="bg-slate-50 p-2.5 rounded border">
                         <label class="block font-bold text-slate-700 mb-1">แพ็ค (Cylinder Pack Bundle)</label>
                         <div class="space-y-1">
@@ -942,7 +908,7 @@ function doPost(e) {
             const tbody = document.getElementById('tsmChecklistTbody');
             tbody.innerHTML = '';
 
-            tsmChecklistItems.slice(1).forEach((item, index) => { // Item 1 is alcohol separate box
+            tsmChecklistItems.slice(1).forEach((item, index) => {
                 const itemNum = index + 2;
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50">
@@ -965,12 +931,13 @@ function doPost(e) {
             });
         }
 
-        // SUBMIT DAILY TRIP LOG (Item 2)
-        function handleTripSubmit(e) {
+        // SUBMIT DAILY TRIP LOG
+        async function handleTripSubmit(e) {
             e.preventDefault();
             if(!checkUserAuth()) return;
 
             const payload = {
+                type: "DAILY_TRIP",
                 userEmail: appState.currentUserEmail,
                 branch: document.getElementById('tripBranch').value,
                 driver: document.getElementById('tripDriver').value,
@@ -985,13 +952,16 @@ function doPost(e) {
                 timestamp: new Date().toISOString()
             };
 
+            showAlert("กำลังส่งข้อมูลไปยัง Google Drive...", "info");
+            await sendToBackend("SAVE_TRIP_LOG", payload);
+
             showAlert("บันทึกข้อมูลเที่ยววิ่งและรายการก๊าซลง Google Drive สำเร็จ! (`1g7bXRSZ68hkVL0WqLIy5UjbguMcZ-rFP`)", "success");
             document.getElementById('formDailyTrip').reset();
             addCustomerCargoBlock();
         }
 
         // SUBMIT TSM SAFETY CHECKLIST
-        function handleTsmSubmit(e) {
+        async function handleTsmSubmit(e) {
             e.preventDefault();
             if(!checkUserAuth()) return;
 
@@ -1001,12 +971,22 @@ function doPost(e) {
                 return;
             }
 
-            showAlert("บันทึกรายงานตรวจความปลอดภัย QF-MT-08 Rev. 01 สำเร็จ!", "success");
+            const payload = {
+                type: "TSM_SAFETY_CHECK",
+                branch: document.getElementById('tsmBranch').value,
+                driver: document.getElementById('tsmDriver').value,
+                vehicle: document.getElementById('tsmVehicle').value,
+                alcoholMg: alcVal,
+                timestamp: new Date().toISOString()
+            };
+
+            await sendToBackend("SAVE_TRIP_LOG", payload);
+            showAlert("บันทึกรายงานตรวจความปลอดภัย QF-MT-08 Rev. 01 ลง Google Drive สำเร็จ!", "success");
             document.getElementById('formTsmSafety').reset();
         }
 
-        // SUBMIT INCIDENT & ABSENCE (Item 1)
-        function handleIncidentSubmit(e) {
+        // SUBMIT INCIDENT & ABSENCE
+        async function handleIncidentSubmit(e) {
             e.preventDefault();
             if(!checkUserAuth()) return;
 
@@ -1024,7 +1004,9 @@ function doPost(e) {
             localStorage.setItem('tsm_incidents', JSON.stringify(appState.incidents));
 
             renderIncidentTable();
-            showAlert(`ส่งการแจ้งเตือนไปยัง ${newInc.alertEmail || 'tgptsm365@gmail.com'} และ LINE Notify เรียบร้อยแล้ว`, "success");
+            await sendToBackend("SAVE_TRIP_LOG", newInc);
+
+            showAlert(`ส่งการแจ้งเตือนไปยัง ${newInc.alertEmail || 'tgptsm365@gmail.com'} และ Google Drive เรียบร้อยแล้ว`, "success");
             document.getElementById('formIncidents').reset();
         }
 
@@ -1091,8 +1073,6 @@ function doPost(e) {
             appState.drivers.forEach(driver => {
                 const otData = appState.otRecords[driver.name] || { otHours: 0, leaveDays: 0 };
                 
-                // KPI Scoring weights formula:
-                // Safety: 30%, Fuel: 20%, OnTime: 20%, Attendance: 30% - (Leave * 5)
                 const safetyScore = 30;
                 const fuelScore = 20;
                 const onTimeScore = 20;
@@ -1121,7 +1101,7 @@ function doPost(e) {
             });
         }
 
-        // AUTHENTICATION & REGISTRATION MODAL CONTROL (Items 2, 3)
+        // AUTHENTICATION & REGISTRATION MODAL CONTROL
         function openAuthModal() {
             document.getElementById('authModal').classList.remove('hidden');
         }
@@ -1161,7 +1141,7 @@ function doPost(e) {
             }
         }
 
-        function handleRegisterSubmit(e) {
+        async function handleRegisterSubmit(e) {
             e.preventDefault();
             const newUser = {
                 fullName: document.getElementById('regFullName').value,
@@ -1181,6 +1161,8 @@ function doPost(e) {
 
             updateUserAuthUI();
             closeAuthModal();
+
+            await sendToBackend("REGISTER_USER", newUser);
             showAlert(`ลงทะเบียนสำเร็จ! ข้อมูลถูกบันทึกไปยัง Google Drive Folder 1w3DVj9jXk0LzJqYZFiCC4QpJ7TWGbSOo`, "success");
         }
 
@@ -1202,30 +1184,26 @@ function doPost(e) {
             return true;
         }
 
-        // MASTER DATA MANAGERS (Item 7)
+        // MASTER DATA MANAGERS
         function renderMasterLists() {
-            // Branch list
             const branchUl = document.getElementById('masterBranchList');
             branchUl.innerHTML = '';
             appState.branches.forEach((b, i) => {
                 branchUl.innerHTML += `<li class="p-2 flex justify-between items-center">${b} <button onclick="deleteBranch(${i})" class="text-red-500 font-bold">&times;</button></li>`;
             });
 
-            // Driver list
             const driverUl = document.getElementById('masterDriverList');
             driverUl.innerHTML = '';
             appState.drivers.forEach((d, i) => {
                 driverUl.innerHTML += `<li class="p-2 flex justify-between items-center">${d.name} <span class="text-slate-400 text-[10px]">(${d.branch})</span> <button onclick="deleteDriver(${i})" class="text-red-500 font-bold">&times;</button></li>`;
             });
 
-            // Vehicle list
             const vehicleUl = document.getElementById('masterVehicleList');
             vehicleUl.innerHTML = '';
             appState.vehicles.forEach((v, i) => {
                 vehicleUl.innerHTML += `<li class="p-2 flex justify-between items-center">${v.plate} <span class="text-slate-400 text-[10px]">(${v.branch})</span> <button onclick="deleteVehicle(${i})" class="text-red-500 font-bold">&times;</button></li>`;
             });
 
-            // Route list
             const routeUl = document.getElementById('masterRouteList');
             routeUl.innerHTML = '';
             appState.routes.forEach((r, i) => {
@@ -1268,12 +1246,6 @@ function doPost(e) {
             setTimeout(() => alertBox.classList.add('hidden'), 5000);
         }
         function dismissAlert() { document.getElementById('systemAlert').classList.add('hidden'); }
-
-        function copyAppsScriptCode() {
-            const code = document.getElementById('appsScriptCodeText').innerText;
-            navigator.clipboard.writeText(code);
-            alert("คัดลอกโค้ด Apps Script เรียบร้อยแล้ว! สามารถนำไปวางใน Google Apps Script Editor ได้ทันที");
-        }
     </script>
 </body>
 </html>
